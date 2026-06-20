@@ -11,12 +11,12 @@ Take screenshots and screen recordings of the iOS Simulator from the terminal. N
 
 ### With npx (recommended)
 ```bash
-npx skills add https://github.com/YOURNAME/ios-simulator-capture --skill "ios-simulator-capture"
+npx skills add https://github.com/HenryArinaga/ios-simulator-capture --skill "ios-simulator-capture"
 ```
 
 ### Manual
 ```bash
-git clone https://github.com/YOURNAME/ios-simulator-capture.git ~/.hermes/skills/ios-simulator-capture
+git clone https://github.com/HenryArinaga/ios-simulator-capture.git ~/.hermes/skills/ios-simulator-capture
 ```
 
 ## Usage
