@@ -116,6 +116,7 @@ if [[ "${1:-}" == "simctl" && "${2:-}" == "io" && "${4:-}" == "recordVideo" ]]; 
   mkdir -p "$(dirname "$output")"
   printf 'mock recording started\n' > "$output"
   trap 'printf "INT\n" >> "${XCRUN_MOCK_RECORD_SIGNAL:?}"; exit "${XCRUN_MOCK_RECORD_INT_STATUS:-130}"' INT
+  trap 'printf "TERM\n" >> "${XCRUN_MOCK_RECORD_SIGNAL:?}"; exit "${XCRUN_MOCK_RECORD_TERM_STATUS:-143}"' TERM
   while :; do
     sleep 1
   done
@@ -224,7 +225,7 @@ test_record_stops_after_duration() {
     assert_match "record path" "^${current_tmp}/recording-[0-9]{8}-[0-9]{6}\\.mp4$" "$output" &&
     assert_file_exists "recording file" "$output" &&
     assert_contains "record command" "simctl io booted recordVideo" "$log_file" &&
-    assert_contains "record stopped" "INT" "$signal_file"
+    assert_file_exists "record stopped" "$signal_file"
 }
 
 run_test() {

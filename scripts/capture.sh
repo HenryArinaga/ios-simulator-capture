@@ -160,6 +160,22 @@ case "$subcommand" in
     if kill -0 "$record_pid" >/dev/null 2>&1; then
       kill -INT "$record_pid" >/dev/null 2>&1 || true
       stopped_by_timer=1
+
+      # Some macOS shell/process combinations do not exit promptly on SIGINT
+      # in non-interactive background jobs. Prefer INT so simctl can finalize
+      # the movie cleanly, then escalate so the wrapper never hangs forever.
+      shutdown_wait=0
+      while kill -0 "$record_pid" >/dev/null 2>&1 && [[ "$shutdown_wait" -lt 5 ]]; do
+        sleep 1
+        shutdown_wait=$((shutdown_wait + 1))
+      done
+      if kill -0 "$record_pid" >/dev/null 2>&1; then
+        kill -TERM "$record_pid" >/dev/null 2>&1 || true
+        sleep 1
+      fi
+      if kill -0 "$record_pid" >/dev/null 2>&1; then
+        kill -KILL "$record_pid" >/dev/null 2>&1 || true
+      fi
     fi
 
     set +e
