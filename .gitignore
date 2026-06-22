@@ -1,0 +1,13 @@
+# Runtime capture output
+captures/
+*.mp4
+*.png
+
+# Local editor and OS files
+.DS_Store
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.log

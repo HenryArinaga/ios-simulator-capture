@@ -7,22 +7,22 @@
 set -euo pipefail
 
 usage() {
-  cat >&2 <<'USAGE'
-Usage:
-  capture.sh screenshot [--output <path>] [--device <UDID|booted>]
-  capture.sh record [--output <path>] [--device <UDID|booted>] [--duration <seconds>]
-USAGE
+  printf '%s\n' \
+    'Usage:' \
+    '  capture.sh screenshot [--output <path>] [--device <UDID|booted>]' \
+    '  capture.sh record [--output <path>] [--device <UDID|booted>] [--duration <seconds>]' \
+    '' \
+    'Options:' \
+    '  --output <path>       File path to write, or a directory to place the default file in.' \
+    '  --device <device>     Simulator UDID or "booted". Defaults to "booted".' \
+    '  --duration <seconds>  Recording length in whole seconds. Defaults to 30.' \
+    '  -h, --help            Show this help.' >&2
 }
 
 die_usage() {
   usage
   exit 2
 }
-
-if ! command -v xcrun >/dev/null 2>&1; then
-  echo "Error: xcrun not found. Install Xcode Command Line Tools: xcode-select --install" >&2
-  exit 1
-fi
 
 if [[ $# -lt 1 ]]; then
   die_usage
@@ -33,6 +33,10 @@ shift
 
 case "$subcommand" in
   screenshot|record) ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
   *) die_usage ;;
 esac
 
@@ -69,13 +73,23 @@ while [[ $# -gt 0 ]]; do
       case "$duration" in
         ''|*[!0-9]*) die_usage ;;
       esac
+      [[ "$duration" -gt 0 ]] || die_usage
       shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
       ;;
     *)
       die_usage
       ;;
   esac
 done
+
+if ! command -v xcrun >/dev/null 2>&1; then
+  echo "Error: xcrun not found. Install Xcode Command Line Tools: xcode-select --install" >&2
+  exit 1
+fi
 
 timestamp=$(date +"%Y%m%d-%H%M%S")
 case "$subcommand" in
@@ -89,8 +103,13 @@ esac
 
 if [[ -z "$output" ]]; then
   output="./${default_name}"
-elif [[ -d "$output" ]]; then
-  output="${output%/}/${default_name}"
+elif [[ -d "$output" || "$output" == */ ]]; then
+  output_dir_target=${output%/}
+  if [[ -z "$output_dir_target" ]]; then
+    output_dir_target="/"
+  fi
+  mkdir -p "$output_dir_target"
+  output="${output_dir_target}/${default_name}"
 fi
 
 output_dir=$(dirname "$output")
