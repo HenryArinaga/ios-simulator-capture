@@ -1,19 +1,30 @@
 ---
 name: ios-simulator-capture
-description: Capture screenshots and timed screen recordings from the iOS Simulator with xcrun simctl. macOS only.
+description: Open the iOS Simulator app, screenshot the current visible simulator viewport, and record timed video from the current visible simulator viewport. macOS only.
 ---
 
 # iOS Simulator Capture
 
-Use this skill when the user wants a screenshot or short screen recording from a running iOS Simulator.
+Use this skill when the user wants Hermes to open the iOS Simulator, take a screenshot of the current simulator, or record a short video of the current simulator.
 
-This skill is macOS-only for real captures. It depends on Xcode's `xcrun simctl`; do not expect it to capture from Linux or Windows. The included tests can run on Linux because they mock `xcrun`.
+The default behavior is simple visible viewport capture. Do not steer the user toward named screens, full-page capture, Maestro, deep links, UI tests, or app config unless they explicitly ask for advanced automation.
+
+## Intent Mapping
+
+Map common user phrases to these commands:
+
+- "open simulator" or "open the iOS simulator": `bash scripts/capture.sh open`
+- "screenshot current simulator": `bash scripts/capture.sh screenshot --output ./captures/current.png`
+- "take a picture of the simulator": `bash scripts/capture.sh screenshot --output ./captures/current.png`
+- "record 30 seconds of simulator": `bash scripts/capture.sh record --duration 30 --output ./captures/demo.mp4`
+
+For similar screenshot requests, capture the current visible simulator viewport. For similar recording requests, record the current visible simulator viewport for the requested duration, defaulting to 30 seconds if the user does not specify a duration.
 
 ## Requirements
 
-- macOS
-- Xcode or Xcode Command Line Tools
-- A booted iOS Simulator, or a specific booted simulator UDID
+- macOS for `open`
+- macOS plus Xcode or Xcode Command Line Tools for screenshot and record
+- A booted iOS Simulator for screenshot and record
 - Bash and standard POSIX command-line tools
 
 If `xcrun` is missing, install Xcode Command Line Tools:
@@ -27,53 +38,68 @@ xcode-select --install
 Run the helper script from this skill directory:
 
 ```bash
-bash scripts/capture.sh screenshot [--output <path>] [--device <UDID|booted>] [--screen <name>] [--full-page]
-bash scripts/capture.sh record [--output <path>] [--device <UDID|booted>] [--duration <seconds>] [--flow <name>]
+bash scripts/capture.sh open
+bash scripts/capture.sh screenshot --output ./captures/current.png
+bash scripts/capture.sh record --duration 30 --output ./captures/demo.mp4
+```
+
+General command shape:
+
+```bash
+bash scripts/capture.sh open
+bash scripts/capture.sh screenshot [--output <path>] [--device <UDID|booted>]
+bash scripts/capture.sh record [--output <path>] [--device <UDID|booted>] [--duration <seconds>]
 ```
 
 Options:
 
 - `--output <path>` writes to a file path, or writes a timestamped default filename inside a directory path.
-- `--device <UDID|booted>` selects the simulator. Default: `booted`.
+- `--device <UDID|booted>` selects the simulator for screenshot or record. Default: `booted`.
 - `--duration <seconds>` sets the recording length in whole seconds. Default: `30`.
-- `--screen <name>` opens a named screen from `.ios-capture-flows.yml` before taking a screenshot.
-- `--flow <name>` records while a named flow command from `.ios-capture-flows.yml` runs.
-- `--full-page` captures a named screen through configured scroll automation and optional stitching.
 - `-h`, `--help` prints usage.
 
-On success, the script prints the absolute output path. In full-page mode without stitching, it prints the saved viewport screenshot paths.
+On success, screenshot and record print the absolute output path. `open` prints a concise success message.
 
 ## Examples
 
 ```bash
-# Screenshot the booted simulator.
-bash scripts/capture.sh screenshot
+# Open the iOS Simulator app.
+bash scripts/capture.sh open
+
+# Screenshot the current visible simulator viewport.
+bash scripts/capture.sh screenshot --output ./captures/current.png
 
 # Screenshot into a directory using a timestamped filename.
 bash scripts/capture.sh screenshot --output ./captures/
 
-# Screenshot to an exact file path.
-bash scripts/capture.sh screenshot --output ./captures/home.png
+# Record 30 seconds from the current visible simulator viewport.
+bash scripts/capture.sh record --duration 30 --output ./captures/demo.mp4
 
-# Record 10 seconds from the booted simulator.
-bash scripts/capture.sh record --duration 10 --output ./captures/demo.mp4
-
-# Target a specific simulator.
+# Target a specific booted simulator.
 bash scripts/capture.sh screenshot --device <UDID>
+```
 
-# Open a configured screen before capture.
+## Advanced Optional Config
+
+Named screens, named recording flows, and full-page scrolling are optional advanced features. They are not the primary Hermes workflow.
+
+Full-page scroll capture is not automatic. It requires extra app-specific automation that can scroll the content and expose each viewport, such as a custom UI test, Maestro flow, or another command. Without that extra automation, the supported workflow is current visible viewport capture and recording.
+
+Advanced commands:
+
+```bash
 bash scripts/capture.sh screenshot --screen home --output ./captures/home.png
-
-# Capture a configured full-page screen.
 bash scripts/capture.sh screenshot --screen home --full-page --output ./captures/home-full.png
-
-# Record while a configured flow command runs.
 bash scripts/capture.sh record --flow signup --output ./captures/signup.mp4
 ```
 
-## Repo-Local Screen and Flow Config
+Advanced options:
 
-Named screens and flows are optional and require `.ios-capture-flows.yml` in the current working directory where the script is invoked. If `--screen` or `--flow` is used and the file is missing, the script reports that named screens and flows require a repo-local config file.
+- `--screen <name>` opens a named screen from `.ios-capture-flows.yml` before taking a screenshot.
+- `--flow <name>` records while a named flow command from `.ios-capture-flows.yml` runs.
+- `--full-page` captures a named screen through configured scroll automation and optional stitching.
+
+Named screens and flows require `.ios-capture-flows.yml` in the current working directory where the script is invoked. If `--screen` or `--flow` is used and the file is missing, the script reports that named screens and flows require a repo-local config file.
 
 Supported config shape:
 
@@ -120,6 +146,10 @@ xcrun simctl boot <UDID>
 ```
 
 ## Troubleshooting
+
+`open is macOS-only`
+
+Run `bash scripts/capture.sh open` on macOS.
 
 `xcrun not found`
 

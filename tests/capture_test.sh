@@ -133,6 +133,27 @@ MOCK
   printf '%s\n' "$mock_bin"
 }
 
+make_mock_open() {
+  mock_bin="${current_tmp}/bin"
+  mkdir -p "$mock_bin"
+  cat >"${mock_bin}/uname" <<'MOCK'
+#!/bin/bash
+printf 'Darwin\n'
+MOCK
+  cat >"${mock_bin}/open" <<'MOCK'
+#!/bin/bash
+set -u
+printf '%s\n' "$*" >> "${OPEN_MOCK_LOG:?}"
+if [[ "${OPEN_MOCK_FAIL:-0}" == "1" ]]; then
+  printf 'mock open failed\n' >&2
+  exit 42
+fi
+exit 0
+MOCK
+  chmod +x "${mock_bin}/uname" "${mock_bin}/open"
+  printf '%s\n' "$mock_bin"
+}
+
 add_fake_scroll_command() {
   mock_bin=$1
   cat >"${mock_bin}/fake-scroll" <<'MOCK'
@@ -199,6 +220,26 @@ test_missing_xcrun() {
   run_capture "$current_tmp" "${current_tmp}/empty-bin" screenshot || true
   assert_eq "status" "1" "$status" &&
     assert_contains "missing xcrun" "xcrun not found" "$stderr_file"
+}
+
+test_open_simulator_uses_macos_open_without_xcrun() {
+  make_tmp
+  mock_bin=$(make_mock_open)
+  log_file="${current_tmp}/open.log"
+  OPEN_MOCK_LOG="$log_file" run_capture "$current_tmp" "$mock_bin" open || true
+  assert_eq "status" "0" "$status" &&
+    assert_contains "success message" "Opened iOS Simulator." "$stdout_file" &&
+    assert_contains "open command" "-a Simulator" "$log_file"
+}
+
+test_open_simulator_reports_open_failure() {
+  make_tmp
+  mock_bin=$(make_mock_open)
+  log_file="${current_tmp}/open.log"
+  OPEN_MOCK_LOG="$log_file" OPEN_MOCK_FAIL=1 run_capture "$current_tmp" "$mock_bin" open || true
+  assert_eq "status" "1" "$status" &&
+    assert_contains "open stderr" "mock open failed" "$stderr_file" &&
+    assert_contains "open failure" "Could not open Simulator" "$stderr_file"
 }
 
 test_no_booted_simulator() {
@@ -392,6 +433,8 @@ run_test() {
 run_test test_no_args_prints_usage
 run_test test_invalid_duration_prints_usage
 run_test test_missing_xcrun
+run_test test_open_simulator_uses_macos_open_without_xcrun
+run_test test_open_simulator_reports_open_failure
 run_test test_no_booted_simulator
 run_test test_screenshot_default_output_path
 run_test test_screenshot_directory_output_path

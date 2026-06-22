@@ -1,6 +1,7 @@
 #!/bin/bash
 # iOS Simulator Capture Script
 # Usage:
+#   capture.sh open
 #   capture.sh screenshot [--output <path>] [--device <UDID|booted>] [--screen <name>] [--full-page]
 #   capture.sh record [--output <path>] [--device <UDID|booted>] [--duration <seconds>] [--flow <name>]
 
@@ -9,8 +10,14 @@ set -euo pipefail
 usage() {
   printf '%s\n' \
     'Usage:' \
+    '  capture.sh open' \
     '  capture.sh screenshot [--output <path>] [--device <UDID|booted>] [--screen <name>] [--full-page]' \
     '  capture.sh record [--output <path>] [--device <UDID|booted>] [--duration <seconds>] [--flow <name>]' \
+    '' \
+    'Common workflow:' \
+    '  capture.sh open' \
+    '  capture.sh screenshot --output ./captures/current.png' \
+    '  capture.sh record --duration 30 --output ./captures/demo.mp4' \
     '' \
     'Options:' \
     '  --output <path>       File path to write, or a directory to place the default file in.' \
@@ -30,6 +37,30 @@ die_usage() {
 die() {
   printf 'Error: %s\n' "$1" >&2
   exit 1
+}
+
+open_simulator() {
+  if [[ "$(uname -s 2>/dev/null || true)" != "Darwin" ]]; then
+    die "open is macOS-only. Run this command on macOS."
+  fi
+
+  if ! command -v open >/dev/null 2>&1; then
+    die "open command not found. Run this command on macOS."
+  fi
+
+  set +e
+  command_output=$(open -a Simulator 2>&1)
+  command_status=$?
+  set -e
+
+  if [[ "$command_status" -ne 0 ]]; then
+    if [[ -n "$command_output" ]]; then
+      printf '%s\n' "$command_output" >&2
+    fi
+    die "Could not open Simulator with: open -a Simulator"
+  fi
+
+  printf '%s\n' "Opened iOS Simulator."
 }
 
 require_positive_integer() {
@@ -119,6 +150,11 @@ subcommand=$1
 shift
 
 case "$subcommand" in
+  open)
+    [[ $# -eq 0 ]] || die_usage
+    open_simulator
+    exit 0
+    ;;
   screenshot|record) ;;
   -h|--help)
     usage
