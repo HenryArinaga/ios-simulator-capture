@@ -68,6 +68,9 @@ assert_file_exists() {
 
 make_tmp() {
   current_tmp=$(mktemp -d "${TMPDIR:-/tmp}/ios-sim-capture-test.XXXXXX")
+  # Normalize macOS /var -> /private/var symlink differences so expected
+  # paths match the capture script's absolute-path output.
+  current_tmp=$(CDPATH= cd "$current_tmp" && pwd -P)
 }
 
 cleanup_tmp() {
