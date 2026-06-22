@@ -32,8 +32,8 @@ bash scripts/capture.sh --help
 ## Usage
 
 ```bash
-bash scripts/capture.sh screenshot [--output <path>] [--device <UDID|booted>]
-bash scripts/capture.sh record [--output <path>] [--device <UDID|booted>] [--duration <seconds>]
+bash scripts/capture.sh screenshot [--output <path>] [--device <UDID|booted>] [--screen <name>] [--full-page]
+bash scripts/capture.sh record [--output <path>] [--device <UDID|booted>] [--duration <seconds>] [--flow <name>]
 ```
 
 Options:
@@ -41,6 +41,9 @@ Options:
 - `--output <path>` writes to a file path, or writes a default filename inside a directory path.
 - `--device <UDID|booted>` selects a simulator. Default: `booted`.
 - `--duration <seconds>` sets the recording length in whole seconds. Default: `30`.
+- `--screen <name>` opens a named screen from `.ios-capture-flows.yml` before taking a screenshot.
+- `--flow <name>` records while a named flow command from `.ios-capture-flows.yml` runs.
+- `--full-page` captures a named screen through configured scroll automation and optionally stitches the viewports.
 - `-h`, `--help` prints usage.
 
 Default filenames are timestamped:
@@ -81,6 +84,80 @@ Target a specific simulator:
 ```bash
 bash scripts/capture.sh screenshot --device <UDID>
 ```
+
+Capture a named screen from a repo-local config:
+
+```bash
+bash scripts/capture.sh screenshot --screen home --output ./captures/home.png
+```
+
+Capture a configured full-page screen:
+
+```bash
+bash scripts/capture.sh screenshot --screen home --full-page --output ./captures/home-full.png
+```
+
+Record while a configured flow command runs:
+
+```bash
+bash scripts/capture.sh record --flow signup --output ./captures/signup.mp4
+```
+
+Override a configured flow duration:
+
+```bash
+bash scripts/capture.sh record --flow signup --duration 10
+```
+
+## Named Screens and Flows
+
+Named screens and flows are optional. They require a `.ios-capture-flows.yml` file in the current working directory where `capture.sh` is invoked. If `--screen` or `--flow` is used and the file is missing, the script prints:
+
+```text
+Error: Named screens/flows require a repo-local .ios-capture-flows.yml file.
+```
+
+Supported config format:
+
+```yaml
+screens:
+  home:
+    open_url: spicy://home
+    wait: 2
+    full_page:
+      scrolls: 4
+      scroll_command: maestro test .maestro/scroll-down.yml
+      stitch: true
+flows:
+  signup:
+    command: xcodebuild test -scheme Spicy -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:SpicyUITests/SignupFlowTests/testSignupFlow
+    record: true
+    duration: 20
+```
+
+`screens.<name>.open_url` runs:
+
+```bash
+xcrun simctl openurl <device> <url>
+```
+
+`screens.<name>.wait` is optional and waits whole seconds before capture.
+
+`flows.<name>.command` runs as a shell command. `record --flow <name>` starts recording, runs the command, then stops when the command finishes or the duration expires, whichever comes first. If `--duration` is not supplied, `flows.<name>.duration` is used when present. The `record` setting documents that the flow is intended for recording; `record --flow` records regardless.
+
+Full-page screenshots are visible-viewport captures plus configured scrolling. `--full-page` requires `--screen`; the script opens the screen URL, captures the initial viewport, repeats `full_page.scrolls` times by running `full_page.scroll_command`, then captures each new viewport. If `full_page.stitch: true`, it runs ImageMagick:
+
+```bash
+magick <viewport-pngs...> -append <output>
+```
+
+If `magick` is missing, install it with:
+
+```bash
+brew install imagemagick
+```
+
+When stitching is requested but `magick` is unavailable, individual viewport screenshots are kept and printed, and stitching is skipped.
 
 ## Finding Simulator UDIDs
 
@@ -123,10 +200,11 @@ Run syntax checks and tests:
 ```bash
 bash -n scripts/capture.sh
 bash -n tests/capture_test.sh
-tests/capture_test.sh
+bash tests/capture_test.sh
+git diff --check
 ```
 
-The tests do not require macOS or Xcode. They replace `xcrun` with a temporary mock.
+The tests do not require macOS or Xcode. They replace `xcrun`, `magick`, and configured scroll or flow commands with temporary mocks.
 
 ## License
 
